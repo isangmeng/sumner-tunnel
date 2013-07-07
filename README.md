@@ -1,4 +1,6 @@
 sumner-tunnel
 =============
 
-Very simple tunnel over IPv4 or IPv6
+Sumner is a very simple tunnel using UDP over IPv4 or IPv6, including
+link local IPv6.  It provides the interface using a Linux tap device.
+
