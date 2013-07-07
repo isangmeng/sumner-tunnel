@@ -41,13 +41,17 @@
 
 static int debug = 0;
 
+struct dirstats {
+    int pkts;
+    int octets;
+    int dropped;
+};
+
 struct tunnel_stats {
     int epoch;
     int written;
-    int xmit_pkts;
-    int recv_pkts;
-    int xmit_octets;
-    int recv_octets;
+    struct dirstats rx;
+    struct dirstats tx;
 };
 
 /*
@@ -60,12 +64,36 @@ idle( struct tunnel_stats *s ) {
     if ( f == NULL ) {
         return;
     }
-    fprintf( f, "%ld %ld %ld %ld\n", s->xmit_pkts, s->xmit_octets,
-                                     s->recv_pkts, s->recv_octets );
+    fprintf( f, "%ld %ld %ld %ld\n", s->tx.pkts, s->tx.octets,
+                                     s->rx.pkts, s->rx.octets );
     fclose( f );
     rename( ".link-stats", "link-stats" );
     s->written = s->epoch;
     printf( "stats updated\n" );
+}
+
+/*
+ */
+static ssize_t
+forward( int in, int out, struct dirstats *s ) {
+    unsigned char buffer[2048];
+
+    ssize_t octets = read( in, buffer, sizeof(buffer) );
+
+    ssize_t written = write( out, buffer, octets );
+
+    if ( written < 0 ) {
+        perror( "write" );
+    }
+
+    if ( written < octets ) {
+        perror( "write" );
+    }
+
+    s->pkts++;
+    s->octets += octets;
+
+    return written;
 }
 
 /*
@@ -100,25 +128,15 @@ loop( int tap, int sock ) {
         }
 
         if ( FD_ISSET(tap, &fds) ) {
-            ssize_t octets = read( tap, buffer, sizeof(buffer) );
-            if ( debug ) printf( "tap->sock %d octets\n", octets );
-            if ( write(sock, buffer, octets) < octets ) {
-                perror( "write" );
-            }
+            ssize_t octets = forward( tap, sock, &(s.tx) );
             s.epoch += 1;
-            s.xmit_pkts++;
-            s.xmit_octets += octets;
+            if ( debug ) printf( "tap->sock %d octets\n", octets );
         }
 
         if ( FD_ISSET(sock, &fds) ) {
-            ssize_t octets = read( sock, buffer, sizeof(buffer) );
-            if ( debug ) printf( "sock->tap %d octets\n", octets );
-            if ( write(tap, buffer, octets) < octets ) {
-                perror( "write" );
-	    }
+            ssize_t octets = forward( sock, tap, &(s.rx) );
             s.epoch += 1;
-            s.recv_pkts++;
-            s.recv_octets += octets;
+            if ( debug ) printf( "sock->tap %d octets\n", octets );
         }
     }
 }
