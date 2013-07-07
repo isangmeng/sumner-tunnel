@@ -1,5 +1,5 @@
 
-CFLAGS += -g 
+CFLAGS += -g -Wall -Werror
 
 default: build
 

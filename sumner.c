@@ -42,9 +42,9 @@
 static int debug = 0;
 
 struct dirstats {
-    int pkts;
-    int octets;
-    int dropped;
+    long int pkts;
+    long int octets;
+    long int dropped;
 };
 
 struct tunnel_stats {
@@ -103,8 +103,6 @@ loop( int tap, int sock ) {
     struct tunnel_stats s;
     memset( &s, 0, sizeof(s) );
 
-    unsigned char buffer[2048];
-
     struct timeval timeout;
     fd_set fds;
 
@@ -130,13 +128,13 @@ loop( int tap, int sock ) {
         if ( FD_ISSET(tap, &fds) ) {
             ssize_t octets = forward( tap, sock, &(s.tx) );
             s.epoch += 1;
-            if ( debug ) printf( "tap->sock %d octets\n", octets );
+            if ( debug ) printf( "tap->sock %zd octets\n", octets );
         }
 
         if ( FD_ISSET(sock, &fds) ) {
             ssize_t octets = forward( sock, tap, &(s.rx) );
             s.epoch += 1;
-            if ( debug ) printf( "sock->tap %d octets\n", octets );
+            if ( debug ) printf( "sock->tap %zd octets\n", octets );
         }
     }
 }
@@ -236,8 +234,6 @@ socket_open( char *laddr, char *lport, char *raddr, char *rport ) {
  */
 int
 main( int argc, char **argv ) {
-    int error;
-
     if ( argc < 6 ) {
         fprintf( stderr, "usage: %s interface-name"
                                   " local-address local-port"
@@ -249,6 +245,8 @@ main( int argc, char **argv ) {
     int sock = socket_open( argv[2], argv[3], argv[4], argv[5] );
 
     loop( tap, sock );
+
+    return 0;
 }
 
 /*
